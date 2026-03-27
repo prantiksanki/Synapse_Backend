@@ -21,10 +21,13 @@ const MONGODB_URI  = process.env.MONGODB_URI  || 'mongodb://localhost:27017/syna
 
 // ── MongoDB User schema ───────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
-  username:  { type: String, required: true, unique: true, trim: true },
-  role:      { type: String, enum: ['deaf', 'caller'], required: true },
-  createdAt: { type: Date, default: Date.now },
-  lastSeen:  { type: Date, default: Date.now },
+  username:    { type: String, required: true, unique: true, trim: true },
+  role:        { type: String, enum: ['deaf', 'caller'], required: true },
+  displayName: { type: String, default: '' },
+  language:    { type: String, default: 'english' },
+  country:     { type: String, default: '' },
+  createdAt:   { type: Date, default: Date.now },
+  lastSeen:    { type: Date, default: Date.now },
 });
 const User = mongoose.model('User', userSchema);
 
@@ -220,6 +223,40 @@ app.get('/users', async (_, res) => {
     res.json(all);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single user profile
+app.get('/users/:username', async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }, { __v: 0 });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user profile (display name, language, country, role)
+app.put('/users/:username', async (req, res) => {
+  const { displayName, language, country, role } = req.body;
+  const allowed = {};
+  if (displayName !== undefined) allowed.displayName = displayName;
+  if (language    !== undefined) allowed.language    = language;
+  if (country     !== undefined) allowed.country     = country;
+  if (role        !== undefined && ['deaf', 'caller'].includes(role)) allowed.role = role;
+  allowed.lastSeen = new Date();
+
+  try {
+    const updated = await User.findOneAndUpdate(
+      { username: req.params.username },
+      { $set: allowed },
+      { new: true, runValidators: true, projection: { __v: 0 } },
+    );
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
