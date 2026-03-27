@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
       await User.findOneAndUpdate(
         { username },
         { role, lastSeen: new Date() },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
     } catch (err) {
       console.warn(`[DB] Upsert failed for ${username}: ${err.message}`);
@@ -106,7 +106,8 @@ io.on('connection', (socket) => {
       calleeSocketId: target.socketId,
     });
 
-    users.get(callerUsername).status = 'in_call';
+    const caller = users.get(callerUsername);
+    if (caller) caller.status = 'in_call';
     target.status = 'in_call';
 
     io.to(target.socketId).emit('incoming_call', {
