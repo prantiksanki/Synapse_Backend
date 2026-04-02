@@ -1,4 +1,4 @@
-// SYNAPSE WebRTC Signaling Server
+// VAANI WebRTC Signaling Server
 // Run: npm install && node index.js
 // Port: 3000 (or set PORT env var)
 // MongoDB: set MONGODB_URI env var or defaults to mongodb://localhost:27017/synapse
@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
       await User.findOneAndUpdate(
         { username },
         { role, lastSeen: new Date() },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
       );
     } catch (err) {
       console.warn(`[DB] Upsert failed for ${username}: ${err.message}`);
@@ -106,8 +106,7 @@ io.on('connection', (socket) => {
       calleeSocketId: target.socketId,
     });
 
-    const caller = users.get(callerUsername);
-    if (caller) caller.status = 'in_call';
+    users.get(callerUsername).status = 'in_call';
     target.status = 'in_call';
 
     io.to(target.socketId).emit('incoming_call', {
@@ -163,6 +162,20 @@ io.on('connection', (socket) => {
   socket.on('ice_candidate', ({ callId, candidate }) => {
     const target = _getOtherSocket(callId, socket.id);
     if (target) io.to(target).emit('ice_candidate', { callId, candidate });
+  });
+
+  // ── SIGN SPEECH RELAY (deaf → caller TTS) ─────────────────────────────────
+  // Deaf user sends signed sentence text; server forwards it to the other
+  // participant in the same call so their device plays TTS locally.
+  socket.on('sign_speech', ({ callId, text }) => {
+    const target = _getOtherSocket(callId, socket.id);
+    if (target && text) io.to(target).emit('sign_speech', { text });
+  });
+
+  // ── SIGN SELECTED RELAY ───────────────────────────────────────────────────
+  socket.on('sign_selected', ({ callId, signId }) => {
+    const target = _getOtherSocket(callId, socket.id);
+    if (target && signId) io.to(target).emit('sign_selected', { signId });
   });
 
   // ── DISCONNECT ────────────────────────────────────────────────────────────
@@ -274,7 +287,7 @@ app.delete('/users/:username', async (req, res) => {
 
 // ── Start server ──────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`SYNAPSE Signaling Server running on http://0.0.0.0:${PORT}`);
+  console.log(`VAANI Signaling Server running on http://0.0.0.0:${PORT}`);
   console.log(`Health:  GET http://localhost:${PORT}/health`);
   console.log(`Users:   GET http://localhost:${PORT}/users`);
 });
