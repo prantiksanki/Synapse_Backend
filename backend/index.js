@@ -172,12 +172,6 @@ io.on('connection', (socket) => {
     if (target && text) io.to(target).emit('sign_speech', { text });
   });
 
-  // ── SIGN SELECTED RELAY ───────────────────────────────────────────────────
-  socket.on('sign_selected', ({ callId, signId }) => {
-    const target = _getOtherSocket(callId, socket.id);
-    if (target && signId) io.to(target).emit('sign_selected', { signId });
-  });
-
   // ── DISCONNECT ────────────────────────────────────────────────────────────
   socket.on('disconnect', async () => {
     const username = socket.data.username;
